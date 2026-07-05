@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ready — mental prep tracker</title>
+<style>
+  :root {
+    --bg: #1B1D21;
+    --panel: #24272D;
+    --panel-border: #33363D;
+    --text: #ECE9E2;
+    --text-muted: #9B9C9C;
+    --accent: #D98F2B;
+    --accent-dim: rgba(217, 143, 43, 0.16);
+    --win: #6FA97C;
+    --loss: #C5675C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+  header {
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .big-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: #1B1D21;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .big-btn:active { opacity: 0.85; }
+  .ghost-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 10px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 16px 0 6px;
+  }
+  label:first-child { margin-top: 0; }
+  input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input[type="range"] {
+    width: 100%;
+  }
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .scale-readout {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 8px 0;
+  }
+  .toggle-row {
+    display: flex;
+    gap: 8px;
+  }
+  .toggle-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .toggle-btn.selected-win {
+    border-color: var(--win);
+    background: rgba(111, 169, 124, 0.15);
+    color: var(--win);
+  }
+  .toggle-btn.selected-loss {
+    border-color: var(--loss);
+    background: rgba(197, 103, 92, 0.15);
+    color: var(--loss);
+  }
+  .pending-banner {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .pending-banner strong { color: var(--accent); }
+  .entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .entry:last-child { border-bottom: none; }
+  .entry-left { display: flex; flex-direction: column; gap: 2px; }
+  .entry-activity { font-size: 14px; font-weight: 600; }
+  .entry-date { font-size: 12px; color: var(--text-muted); }
+  .entry-right { text-align: right; }
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .pill-win { background: rgba(111, 169, 124, 0.18); color: var(--win); }
+  .pill-loss { background: rgba(197, 103, 92, 0.18); color: var(--loss); }
+  .feeling-tag { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .insight-row { margin-bottom: 20px; }
+  .insight-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .bar-track {
+    height: 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 6px;
+  }
+  .insight-headline {
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .insight-headline strong { color: var(--accent); }
+  .footer-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 24px;
+    line-height: 1.6;
+  }
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Ready</h1>
+    <p>Log how you feel before you play. See how it connects to your results.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="home">Home</button>
+    <button class="tab" data-tab="history">History</button>
+    <button class="tab" data-tab="insights">Insights</button>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div id="pendingBanner"></div>
+
+    <div class="card" id="checkinCard">
+      <div id="checkinForm">
+        <label for="activityInput">What are you about to play?</label>
+        <input type="text" id="activityInput" placeholder="Tennis match, soccer game, recital...">
+
+        <label>How do you feel right now?</label>
+        <div class="scale-readout" id="feelingReadout">5</div>
+        <input type="range" id="feelingSlider" min="1" max="10" value="5">
+        <div class="scale-labels"><span>Very calm</span><span>Very nervous</span></div>
+
+        <label for="preNoteInput">Anything on your mind? (optional)</label>
+        <input type="text" id="preNoteInput" placeholder="Slept badly, big rival, feeling good...">
+
+        <button class="big-btn" id="submitCheckin" style="margin-top:20px;">Log check-in</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <label>How did it go?</label>
+      <div class="toggle-row">
+        <button class="toggle-btn" id="winBtn">Win</button>
+        <button class="toggle-btn" id="lossBtn">Loss</button>
+      </div>
+
+      <label for="ratingSlider">Rate your performance</label>
+      <div class="scale-readout" id="ratingReadout">5</div>
+      <input type="range" id="ratingSlider" min="1" max="10" value="5">
+      <div class="scale-labels"><span>Rough</span><span>Best I've played</span></div>
+
+      <label for="postNoteInput">Notes (optional)</label>
+      <input type="text" id="postNoteInput" placeholder="What worked, what didn't...">
+
+      <button class="big-btn" id="submitResult" style="margin-top:20px;">Save result</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="screen" id="screen-history">
+    <div class="card" id="historyList"></div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="screen" id="screen-insights">
+    <div class="card" id="insightsPanel"></div>
+  </div>
+
+  <div class="footer-note">
+    Your data stays on this device only. This is a reflection tool, not a substitute<br>for coaching or mental health care.
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'readyEntries';
+const PENDING_KEY = 'readyPending';
+
+function loadEntries() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveEntries(entries) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+function loadPending() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY)); }
+  catch (e) { return null; }
+}
+function savePending(p) {
+  if (p) localStorage.setItem(PENDING_KEY, JSON.stringify(p));
+  else localStorage.removeItem(PENDING_KEY);
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('screen-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'history') renderHistory();
+    if (tab.dataset.tab === 'insights') renderInsights();
+  });
+});
+
+// Sliders
+const feelingSlider = document.getElementById('feelingSlider');
+const feelingReadout = document.getElementById('feelingReadout');
+feelingSlider.addEventListener('input', () => feelingReadout.textContent = feelingSlider.value);
+
+const ratingSlider = document.getElementById('ratingSlider');
+const ratingReadout = document.getElementById('ratingReadout');
+ratingSlider.addEventListener('input', () => ratingReadout.textContent = ratingSlider.value);
+
+let resultChoice = null;
+const winBtn = document.getElementById('winBtn');
+const lossBtn = document.getElementById('lossBtn');
+winBtn.addEventListener('click', () => {
+  resultChoice = 'win';
+  winBtn.classList.add('selected-win');
+  lossBtn.classList.remove('selected-loss');
+});
+lossBtn.addEventListener('click', () => {
+  resultChoice = 'loss';
+  lossBtn.classList.add('selected-loss');
+  winBtn.classList.remove('selected-win');
+});
+
+function renderHome() {
+  const pending = loadPending();
+  const banner = document.getElementById('pendingBanner');
+  const checkinCard = document.getElementById('checkinCard');
+  const resultCard = document.getElementById('resultCard');
+
+  if (pending) {
+    banner.innerHTML = '<div class="pending-banner"><strong>' + escapeHtml(pending.activity) +
+      '</strong> — check-in logged. Log your result when you\'re done.</div>';
+    checkinCard.style.display = 'none';
+    resultCard.style.display = 'block';
+    resultChoice = null;
+    winBtn.classList.remove('selected-win');
+    lossBtn.classList.remove('selected-loss');
+    ratingSlider.value = 5;
+    ratingReadout.textContent = '5';
+    document.getElementById('postNoteInput').value = '';
+  } else {
+    banner.innerHTML = '';
+    checkinCard.style.display = 'block';
+    resultCard.style.display = 'none';
+    document.getElementById('activityInput').value = '';
+    feelingSlider.value = 5;
+    feelingReadout.textContent = '5';
+    document.getElementById('preNoteInput').value = '';
+  }
+}
+
+document.getElementById('submitCheckin').addEventListener('click', () => {
+  const activity = document.getElementById('activityInput').value.trim() || 'Match';
+  const pending = {
+    activity: activity,
+    feeling: parseInt(feelingSlider.value, 10),
+    preNote: document.getElementById('preNoteInput').value.trim(),
+    startedAt: new Date().toISOString()
+  };
+  savePending(pending);
+  renderHome();
+});
+
+document.getElementById('submitResult').addEventListener('click', () => {
+  if (!resultChoice) { alert('Pick win or loss first.'); return; }
+  const pending = loadPending();
+  if (!pending) return;
+  const entries = loadEntries();
+  entries.unshift({
+    id: Date.now(),
+    activity: pending.activity,
+    feeling: pending.feeling,
+    preNote: pending.preNote,
+    result: resultChoice,
+    rating: parseInt(ratingSlider.value, 10),
+    postNote: document.getElementById('postNoteInput').value.trim(),
+    date: new Date().toISOString()
+  });
+  saveEntries(entries);
+  savePending(null);
+  renderHome();
+});
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function renderHistory() {
+  const entries = loadEntries();
+  const container = document.getElementById('historyList');
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty">No entries yet. Log a check-in on the Home tab before your next game.</div>';
+    return;
+  }
+  container.innerHTML = entries.map(e => `
+    <div class="entry">
+      <div class="entry-left">
+        <span class="entry-activity">${escapeHtml(e.activity)}</span>
+        <span class="entry-date">${fmtDate(e.date)}</span>
+        <span class="feeling-tag">Felt ${e.feeling}/10 before &middot; rated ${e.rating}/10 after</span>
+      </div>
+      <div class="entry-right">
+        <span class="pill ${e.result === 'win' ? 'pill-win' : 'pill-loss'}">${e.result === 'win' ? 'Win' : 'Loss'}</span>
+        <div><button class="delete-btn" onclick="deleteEntry(${e.id})">&times;</button></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteEntry(id) {
+  const entries = loadEntries().filter(e => e.id !== id);
+  saveEntries(entries);
+  renderHistory();
+}
+
+function renderInsights() {
+  const entries = loadEntries();
+  const panel = document.getElementById('insightsPanel');
+  if (entries.length < 3) {
+    panel.innerHTML = '<div class="empty">Log at least 3 matches to start seeing patterns between how you feel and how you play.</div>';
+    return;
+  }
+
+  const buckets = { low: [], mid: [], high: [] };
+  entries.forEach(e => {
+    if (e.feeling <= 3) buckets.low.push(e);
+    else if (e.feeling <= 7) buckets.mid.push(e);
+    else buckets.high.push(e);
+  });
+
+  function winRate(list) {
+    if (list.length === 0) return null;
+    const wins = list.filter(e => e.result === 'win').length;
+    return Math.round((wins / list.length) * 100);
+  }
+
+  const lowRate = winRate(buckets.low);
+  const midRate = winRate(buckets.mid);
+  const highRate = winRate(buckets.high);
+
+  const avgFeelingWins = avg(entries.filter(e => e.result === 'win').map(e => e.feeling));
+  const avgFeelingLosses = avg(entries.filter(e => e.result === 'loss').map(e => e.feeling));
+
+  let headline = '';
+  if (avgFeelingWins !== null && avgFeelingLosses !== null) {
+    if (avgFeelingWins < avgFeelingLosses - 0.5) {
+      headline = `You tend to play better when you're <strong>calmer</strong> going in. Average pre-match feeling on wins: ${avgFeelingWins.toFixed(1)}/10, on losses: ${avgFeelingLosses.toFixed(1)}/10.`;
+    } else if (avgFeelingWins > avgFeelingLosses + 0.5) {
+      headline = `A bit of nervous energy seems to work for you. Average pre-match feeling on wins: ${avgFeelingWins.toFixed(1)}/10, on losses: ${avgFeelingLosses.toFixed(1)}/10.`;
+    } else {
+      headline = `No strong pattern yet between nerves and results — keep logging to see if one emerges.`;
+    }
+  } else {
+    headline = `Keep logging wins and losses to start seeing your pattern.`;
+  }
+
+  function barRow(label, rate, count) {
+    if (rate === null) return `<div class="insight-row"><div class="insight-label"><span>${label}</span><span>no data</span></div><div class="bar-track"></div></div>`;
+    return `<div class="insight-row">
+      <div class="insight-label"><span>${label} (${count} matches)</span><span>${rate}% win rate</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div>
+    </div>`;
+  }
+
+  panel.innerHTML = `
+    <div class="insight-headline">${headline}</div>
+    ${barRow('Calm going in (1-3)', lowRate, buckets.low.length)}
+    ${barRow('Moderate nerves (4-7)', midRate, buckets.mid.length)}
+    ${barRow('Very nervous (8-10)', highRate, buckets.high.length)}
+  `;
+}
+
+function avg(list) {
+  if (list.length === 0) return null;
+  return list.reduce((a, b) => a + b, 0) / list.length;
+}
+
+renderHome();
+</script>
+
+<!-- Usage tracking: replace YOURCODE below with your own GoatCounter code after signing up free at goatcounter.com -->
+<script data-goatcounter="https://YOURCODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
