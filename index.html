@@ -375,6 +375,7 @@
       <input type="text" id="postNoteInput" placeholder="What worked, what didn't...">
 
       <button class="big-btn" id="submitResult" style="margin-top:20px;">Save result</button>
+      <button class="ghost-btn" id="cancelCheckin">Cancel this check-in</button>
     </div>
   </div>
 
@@ -577,6 +578,11 @@ document.getElementById('submitResult').addEventListener('click', () => {
     date: new Date().toISOString()
   });
   saveEntries(entries);
+  savePending(null);
+  renderHome();
+});
+
+document.getElementById('cancelCheckin').addEventListener('click', () => {
   savePending(null);
   renderHome();
 });
