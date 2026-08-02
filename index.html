@@ -295,6 +295,24 @@
     cursor: pointer;
     padding: 4px 8px;
   }
+  .tip-card {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .tip-card .tip-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 6px;
+    display: block;
+  }
 </style>
 </head>
 <body>
@@ -322,6 +340,7 @@
   <!-- HOME -->
   <div class="screen active" id="screen-home">
     <div id="pendingBanner"></div>
+    <div id="tipCard"></div>
 
     <div class="card" id="checkinCard">
       <div id="checkinForm">
@@ -371,7 +390,7 @@
   </div>
 
   <div class="footer-note">
-    Your data stays on this device only. This is a reflection tool, not a substitute<br>for coaching or mental health care.
+    Your log stays on this device. If you type a note, it's sent securely to generate<br>your tip — everything else stays local. Not a substitute for coaching or mental health care.
   </div>
 </div>
 
@@ -430,9 +449,73 @@ lossBtn.addEventListener('click', () => {
   winBtn.classList.remove('selected-win');
 });
 
+const FALLBACK_TIPS = {
+  low: [
+    "You're in a good spot. Do a quick physical warmup to match your body to your calm mind, and set one simple focus for the first few minutes.",
+    "Calm is an advantage right now. Pick one specific, small target for the start of play so that calm turns into sharp focus, not flatness."
+  ],
+  mid: [
+    "Try box breathing before you start: in for 4, hold for 4, out for 4, hold for 4. Repeat 4 times to settle the nervous energy.",
+    "Name one thing you can control right now — your first move, your breathing, your effort — and put your attention there instead of the outcome."
+  ],
+  high: [
+    "Take 60 seconds: breathe in for 4 counts, out for 6, and repeat 5 times. Longer exhales signal your body to calm down.",
+    "High nerves often mean you care — that's fuel, not a flaw. Pick one small physical action (a few jumps, shaking out your arms) to release the extra energy before you start."
+  ]
+};
+
+function feelingBucket(feeling) {
+  if (feeling <= 3) return 'low';
+  if (feeling <= 7) return 'mid';
+  return 'high';
+}
+
+function getFallbackTip(feeling) {
+  const bucket = feelingBucket(feeling);
+  const options = FALLBACK_TIPS[bucket];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+async function generateTip(pending) {
+  const tipCard = document.getElementById('tipCard');
+  tipCard.innerHTML = '<div class="tip-card"><span class="tip-label">Getting your tip</span>One moment...</div>';
+
+  if (!pending.preNote) {
+    const tip = getFallbackTip(pending.feeling);
+    tipCard.innerHTML = `<div class="tip-card"><span class="tip-label">Right now</span>${escapeHtml(tip)}</div>`;
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        system: "You are a concise sports mental-performance coach. Given an athlete's pre-competition nervousness rating (1-10) and what's on their mind, give ONE short, concrete, actionable tip to help them right now — a breathing technique, a mental reframe, or a quick physical action. 2-3 sentences max. Plain, direct, encouraging language. No therapy-speak, no disclaimers, no bullet points, just the tip as one short paragraph.",
+        messages: [
+          {
+            role: "user",
+            content: `Feeling: ${pending.feeling}/10 nervous (10 = most nervous). About to play: ${pending.activity}. What's on their mind: "${pending.preNote}"`
+          }
+        ]
+      })
+    });
+    const data = await response.json();
+    const textBlock = (data.content || []).find(b => b.type === 'text');
+    if (!textBlock) throw new Error('No tip returned');
+    tipCard.innerHTML = `<div class="tip-card"><span class="tip-label">Right now</span>${escapeHtml(textBlock.text.trim())}</div>`;
+  } catch (e) {
+    const tip = getFallbackTip(pending.feeling);
+    tipCard.innerHTML = `<div class="tip-card"><span class="tip-label">Right now</span>${escapeHtml(tip)}</div>`;
+  }
+}
+
 function renderHome() {
   const pending = loadPending();
   const banner = document.getElementById('pendingBanner');
+  const tipCard = document.getElementById('tipCard');
   const checkinCard = document.getElementById('checkinCard');
   const resultCard = document.getElementById('resultCard');
 
@@ -447,8 +530,16 @@ function renderHome() {
     ratingSlider.value = 5;
     ratingReadout.textContent = '5';
     document.getElementById('postNoteInput').value = '';
+    if (pending.tipShown) {
+      // tip already generated this session view; leave as is if present
+    } else {
+      generateTip(pending);
+      pending.tipShown = true;
+      savePending(pending);
+    }
   } else {
     banner.innerHTML = '';
+    tipCard.innerHTML = '';
     checkinCard.style.display = 'block';
     resultCard.style.display = 'none';
     document.getElementById('activityInput').value = '';
@@ -634,7 +725,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 renderHome();
 </script>
 
-<!-- Usage tracking: replace YOURCODE below with your own GoatCounter code after signing up free at goatcounter.com -->
+<!-- Usage tracking -->
 <script data-goatcounter="https://ready-app.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
